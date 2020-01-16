@@ -8,35 +8,95 @@
     function $(id) {
       return document.getElementById(id);
     }
-    function init() {
-      navigator.permissions.query({name:'gyroscope'}).then(function(result) {
-        if (result.state === 'granted') {
-          let gyroscope = new Gyroscope({frequency: 60});
-          let output = $('output');
-          let started = Date.now();
-          let nextUpdateTime = started + 1000.0;
-          let numFrames = 0;
+    function watchGyro() {
+      try {
+        let gyroscope = new Gyroscope({frequency: 60});
+        let started = Date.now();
+        let nextUpdateTime = started + 1000.0;
+        let numFrames = 0;
+        gyroscope.addEventListener('reading', e => {
+          numFrames += 1;
+          let now = Date.now();
+          if (now >= nextUpdateTime) {
+            updateRate = numFrames / ((now - started) / 1000.0);
+            $('gyroscope').innerHTML = 'Rate: ' + Math.round(updateRate) + ' Hz';
+            nextUpdateTime = now + 1000.0;
+          }
+        });
+        gyroscope.start();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    function watchAccelerometer() {
+      try {
+        let accelerometer = new Accelerometer({frequency: 60});
+        let started = Date.now();
+        let nextUpdateTime = started + 1000.0;
+        let numFrames = 0;
+        accelerometer.addEventListener('reading', e => {
+          numFrames += 1;
+          let now = Date.now();
+          if (now >= nextUpdateTime) {
+            updateRate = numFrames / ((now - started) / 1000.0);
+            $('accelerometer').innerHTML = 'Rate: ' + Math.round(updateRate) + ' Hz';
+            nextUpdateTime = now + 1000.0;
+          }
+        });
+        accelerometer.start();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    function listenAll() {
+      Promise.all([
+        navigator.permissions.query({ name: 'gyroscope' }),
+        navigator.permissions.query({ name: 'accelerometer' })
+      ])
+      .then(([
+          { state: gyroState },
+          { state: accelState }]) => {
 
-          gyroscope.addEventListener('reading', e => {
-            numFrames += 1;
-            let now = Date.now();
-            if (now >= nextUpdateTime) {
-              updateRate = numFrames / ((now - started) / 1000.0);
-              $('output').innerHTML = 'Rate: ' + Math.round(updateRate) + ' Hz';
-            }
-          });
-          gyroscope.start();
-        } else if (result.state === 'prompt') {
-          $('output').innerHTML = 'prompt';
+        switch (gyroState) {
+          case 'granted':
+            console.log('Gyro: granted')
+            watchGyro();
+            break;
+          case 'prompt':
+            console.log('Gyro: prompt')
+            watchGyro();
+            break;
+          default:
+            $('gyroscope').innerHTML = 'Denied access to gyroscope';
+            break;
         }
-        $('output').innerHTML = 'Denied access to gyroscope';
-      });
 
+        switch (accelState) {
+          case 'granted':
+            console.log('Accel: granted')
+            watchAccelerometer();
+            break;
+          case 'prompt':
+            console.log('Accel: prompt')
+            watchAccelerometer();
+            break;
+          default:
+            $('accelerometer').innerHTML = 'Denied access to accelerometer';
+            break;
+        }
+      });
+    }
+    function init() {
+      listenAll();
     }
     </script>
   </head>
   <body onload="init()">
-    <p>Generic Sensor</p>
-    <p>Output: <span id="output">idle</span></p>
+    <h1>Generic Sensor</h1>
+    <table>
+      <tr><th>Sensor</th></tr>
+      <tr><td>Gyroscope: <span id="gyroscope"></span></td></tr>
+      <tr><td>Accelerometer: <span id="accelerometer"></span></td></tr>
+    </table>
   </body>
 </html>
