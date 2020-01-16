@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Generic XMLHttpRequest Test</title>
+    <script>
+    var myWorker = new Worker('worker.js');
+    myWorker.onmessage = function(e) {
+      console.log('Message received from worker: ' + e.data);
+    }
+    function $(id) {
+      return document.getElementById(id);
+    }
+    function setStatus(msg) {
+      $("status").innerHTML = msg;
+      console.info(msg);
+    }
+    function setCookie() {
+      document.cookie = "somecookie=Some Value";
+    }
+    function doSyncLoad(url) {
+      setCookie();
+      var oReq = new XMLHttpRequest();
+      oReq.open("GET", url, /*async=*/false);
+      oReq.send();
+      setCookie();
+    }
+    function loadImage(url, async) {
+      setStatus("Running test...");
+      var oReq = new XMLHttpRequest();
+      oReq.onreadystatechange = function() {
+        setStatus("readyState: " + oReq.readyState + ", status: " + oReq.status);
+        switch (oReq.readyState) {
+          case XMLHttpRequest.UNSENT:
+            break;
+          case XMLHttpRequest.OPENED:
+            break;
+          case XMLHttpRequest.HEADERS_RECEIVED:
+            break;
+          case XMLHttpRequest.LOADING:
+            break;
+          case XMLHttpRequest.DONE:
+            if (oReq.status === 200) {
+              setStatus("Test complete (loaded).");
+              doSyncLoad(url);
+            } else {
+              setStatus("Test failed, status: " + oReq.status);
+            }
+            break;
+        }
+      };
+      oReq.onload = function(e) {
+        setStatus("onload");
+        doSyncLoad(url);
+        console.log(e);
+      }
+      oReq.onprogress = function(e) {
+        setStatus("onprogress");
+        doSyncLoad(url);
+      }
+      oReq.onerror = function(e) {
+        setStatus("onerror");
+        doSyncLoad(url);
+      }
+      oReq.onabort = function(e) {
+        setStatus("onabort");
+        doSyncLoad(url);
+      }
+      oReq.open("GET", url, async);
+      oReq.send();
+      myWorker.postMessage([url, async]);
+      if (oReq.status === 200) {
+        setStatus("Test finished.");
+      }
+    }
+    function doTest() {
+      loadImage("/cup.jpg", /*async=*/false);
+      loadImage("/cup.jpg", /*async=*/true);
+      loadImage("/cup.jpg", /*async=*/false);
+      loadImage("/cupX.jpg", /*async=*/false);
+      loadImage("/cupXX.jpg", /*async=*/true);
+      loadImage("/cupXXX.jpg", /*async=*/false);
+    }
+    function init() {
+    }
+    </script>
+  </head>
+  <body onload="init()">
+    <p>Generic HTML starter.</p>
+    <p>Status: <span id="status"></span></p>
+    <button onclick="doTest()">Run test</button>
+    <img id="image"/>
+  </body>
+</html>

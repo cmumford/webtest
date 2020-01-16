@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Indexed DB Memory Leak Test</title>
+    <script>
+    var dbName = 'leak-db';
+    var storeName = 'leak-store';
+    var allEntries = [];
+    var keyName = 'globals.key.val';
+    var database;
+
+    var globals = {
+      'count': 0,
+      'id': 1,
+      'info': 'Some global string',
+      'longstr': (new Array(5*1024*1024)).join("x"),
+      'timestamp': 0
+    };
+
+    function $(id) {
+      "use strict";
+      return document.getElementById(id);
+    }
+
+    function setStatus(msg) {
+      "use strict";
+      console.log(msg);
+      $('status').innerHTML = msg;
+    }
+
+    function rafCallback() {
+      console.log(database);
+      iterateGlobals();
+      window.requestAnimationFrame(rafCallback);
+    }
+
+    function iterateGlobals() {
+      setStatus('Iterating globals');
+      console.log(database);
+      var transaction = database.transaction([storeName], "readonly");
+      transaction.onerror = ((e) => {
+        setStatus(this.error);
+      });
+      var store = transaction.objectStore(storeName);
+      var index = store.index("timestamp");
+      var cursor = index.openKeyCursor();
+      var numVals = 0;
+      if (cursor == null) {
+        console.error('Unable to create new cursor');
+        return;
+      }
+      cursor.onsuccess = ((event) => {
+        var cursor = event.target.result;
+        if (!cursor) {
+          setStatus('Iteration done, vals:' + numVals);
+          return
+        }
+        console.log('Read one value');
+        numVals += 1;
+        cursor.continue()
+      })
+    }
+
+    function readGlobals(db) {
+      var transaction = db.transaction([storeName], "readonly");
+      transaction.oncomplete = (event) => {
+        setStatus('Successfully read globals');
+        database = db;
+        rafCallback();
+      };
+      transaction.onerror = (event) => {
+        setStatus('Failure reading globals.');
+      };
+      var store = transaction.objectStore(storeName);
+      store.get(keyName);
+    }
+
+    function writeGlobals(db) {
+      var transaction = db.transaction([storeName], "readwrite");
+      transaction.oncomplete = (event) => {
+        setStatus('Successfully wrote globals');
+        readGlobals(db)
+      };
+      transaction.onerror = (event) => {
+        setStatus('Failure writing globals.');
+      };
+      var store = transaction.objectStore(storeName);
+      globals.id += 1;
+      globals.timestamp += 1;
+      store.put(globals, keyName);
+    }
+
+    function init() {
+      setStatus('Opening database');
+      var openRequest = indexedDB.open(dbName);
+      openRequest.onupgradeneeded = (evt) => {
+        setStatus('onupgradeneeded: old:' + evt.oldVersion + ', new:' + evt.newVersion
+                  + ', dataLoss:' + evt.dataLoss);
+
+        var db = event.target.result;
+        db.onerror = (event) => {
+          setStatus('Error loading database.');
+        };
+
+        var objectStore = db.createObjectStore(storeName);
+        objectStore.createIndex("id", "id");
+        objectStore.createIndex("timestamp", "timestamp");
+      };
+
+      openRequest.onsuccess = (evt) => {
+        setStatus('open: success');
+        var db = evt.target.result;
+        db.onversionchange = (evt) => {
+          setStatus('versionchange: old:' + evt.oldVersion + ', new:' + evt.newVersion);
+        };
+        writeGlobals(db);
+      };
+    }
+
+    function toggleCheckbox(element) {
+      run = element.checked;
+    }
+    </script>
+  </head>
+  <body onload="init()">
+    <h1>Indexed DB IDBCursor Leak Test.</h1>
+    <p>Status: <span id="status">Not set.</span></p>
+  </body>
+</html>

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Service Worker Sample: Basic Registration</title>
+    <script>
+    var g_registration;
+    function $(id) {
+      "use strict";
+      return document.getElementById(id);
+    }
+    function setStatus(msg) {
+      "use strict";
+      console.log(msg);
+      $('status').innerHTML = msg;
+    }
+    function sendMessage(message) {
+      // This wraps the message posting/response in a promise, which will resolve if the response doesn't
+      // contain an error, and reject with the error if it does. If you'd prefer, it's possible to call
+      // controller.postMessage() and set up the onmessage handler independently of a promise, but this is
+      // a convenient wrapper.
+      return new Promise(function(resolve, reject) {
+        var messageChannel = new MessageChannel();
+        messageChannel.port1.onmessage = function(event) {
+          if (event.data.error) {
+            reject(event.data.error);
+          } else {
+            resolve(event.data);
+          }
+        };
+
+        // This sends the message data as well as transferring messageChannel.port2 to the service worker.
+        // The service worker can then use the transferred port to reply via postMessage(), which
+        // will in turn trigger the onmessage handler on messageChannel.port1.
+        // See https://html.spec.whatwg.org/multipage/workers.html#dom-worker-postmessage
+        navigator.serviceWorker.controller.postMessage(message,
+          [messageChannel.port2]);
+      });
+    }
+    function register() {
+      if ('serviceWorker' in navigator) {
+        // Override the default scope of '/' with './', so that the registration applies
+        // to the current directory and everything underneath it.
+        navigator.serviceWorker.register('service-worker.js', {scope: './'}).then(function(registration) {
+          g_registration = registration;
+          enableControls();
+          // At this point, registration has taken place.
+          // The service worker will not handle requests until this page and any
+          // other instances of this page (in other tabs, etc.) have been
+          // closed/reloaded.
+          setStatus('Registration succeeded');
+        }).catch(function(error) {
+          setStatus('Registration FAILED: ' + error);
+        });
+      } else {
+        setStatus("Browser doesn't support service worker");
+      }
+    }
+    function unregister() {
+      if (g_registration) {
+        // Override the default scope of '/' with './', so that the registration applies
+        // to the current directory and everything underneath it.
+        g_registration.unregister().then(function(success) {
+          if (success) {
+            setStatus('Successfully unregistered');
+            g_registration = null;
+            enableControls();
+          } else {
+            setStatus('ERROR unregistering SW');
+          }
+        });
+      } else {
+        setStatus("Browser doesn't support service worker");
+      }
+    }
+    function addToCache() {
+      sendMessage({
+        command: 'add',
+        url: 'http://media.npr.org/assets/img/2017/11/01/gettyimages-869094574_custom-33b55a342d0dd2b9bee6edc97765392f3bba2861-s800-c85.jpg'
+      }).then(function() {
+        setStatus('Added to cache.');
+      }).catch(function(reason) {
+        setStatus('Failure adding to cache.' + reason);
+      });
+    }
+    function deleteFromCache() {
+      sendMessage({
+        command: 'delete',
+        url: 'http://media.npr.org/assets/img/2017/11/01/gettyimages-869094574_custom-33b55a342d0dd2b9bee6edc97765392f3bba2861-s800-c85.jpg'
+      }).then(function() {
+        setStatus('Deleted from cache.');
+      }).catch(function(reason) {
+        setStatus('Failure deleting from cache.');
+      });
+    }
+    function deleteCache() {
+      sendMessage({
+        command: 'deleteCache'
+      }).then(function() {
+        setStatus('Deleted cache.');
+      }).catch(function(reason) {
+        setStatus('Failure deleting cache.');
+      });
+    }
+    function enableControls() {
+      "use strict";
+      $("register").disabled = (g_registration != null);
+      $("unregister").disabled = (g_registration == null);
+      $("add").disabled = (g_registration == null);
+      $("delete").disabled = (g_registration == null);
+      $("deleteCache").disabled = (g_registration == null);
+    }
+    function getMemUsage(bytes) {
+      if (bytes > 1024*1024*1024) {
+        return (bytes/1024/1024/1024).toFixed(2) + ' GiB';
+      } else if (bytes > 1024*1024) {
+        return (bytes/1024/1024).toFixed(2) + ' MiB';
+      } else if (bytes > 1024) {
+        return (bytes/1024).toFixed(2) + ' KiB';
+      } else {
+        return bytes + ' B';
+      }
+    }
+    function storageEstimateWrapper() {
+      if (!navigator) {
+        return Promise.resolve({usage: NaN, quota: NaN});
+      }
+      if (navigator.storage && navigator.storage.estimate) {
+        // We've got the real thing! Return its response.
+        return navigator.storage.estimate();
+      }
+
+      if (navigator.webkitTemporaryStorage &&
+          navigator.webkitTemporaryStorage.queryUsageAndQuota) {
+        // Return a promise-based wrapper that will follow the expected interface.
+        return new Promise(function(resolve, reject) {
+          navigator.webkitTemporaryStorage.queryUsageAndQuota(
+            function(usage, quota) {resolve({usage: usage, quota: quota})},
+            reject
+          );
+        });
+      }
+
+      // If we can't estimate the values, return a Promise that resolves with NaN.
+      return Promise.resolve({usage: NaN, quota: NaN});
+    }
+    function update() {
+      storageEstimateWrapper().then(estimate => {
+        $('usage').innerHTML = 'Usage: ' + getMemUsage(estimate.usage) +
+          ', quota: ' + getMemUsage(estimate.quota);
+      });
+    }
+    function init() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', event => {
+          setStatus('Got message from service worker', event);
+        });
+      }
+      enableControls();
+      setStatus('Ready.');
+      setInterval(function(){ update(); }, 1000);
+    }
+    </script>
+  </head>
+
+  <body onload="init()">
+    <h1>Service Worker Sample: Basic Registration</h1>
+
+    <div class="output">
+      <p>service worker registration: <strong id="status"></strong></p>
+      <p>Storage Usage: <strong id="usage"></strong></p>
+    </div>
+    <button id="register" type="button" onclick="register()">Register SW</button><br />
+    <button id="unregister" type="button" onclick="unregister()">Unregister SW</button><br />
+    <button id="add" type="button" onclick="addToCache()">Add To Cache</button><br />
+    <button id="delete" type="button" onclick="deleteFromCache()">Delete From Cache</button><br />
+    <button id="deleteCache" type="button" onclick="deleteCache()">Delete Cache</button><br />
+  </body>
+</html>
