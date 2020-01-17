@@ -33,9 +33,11 @@
         case 'gyroscope':
           return new Gyroscope({frequency: 60});
         case 'accelerometer':
-          return new Accelerometer({frequency: 60});
+          return new Accelerometer({frequency: 50});
         case 'magnetometer':
-          return new Magnetometer({frequency: 60});
+          return new Magnetometer({frequency: 10});
+        case 'ambient-light-sensor':
+          return new AmbientLightSensor({frequency: 10});
         default:
       }
     }
@@ -59,19 +61,26 @@
       }
     }
     function listenAll() {
+      var lightSensorQuery = function() {
+        // On Chrome requires GenericSensorExtraClasses.
+        return navigator.permissions.query({ name: 'ambient-light-sensor' })
+      }
       Promise.all([
         navigator.permissions.query({ name: 'gyroscope' }),
         navigator.permissions.query({ name: 'accelerometer' }),
-        navigator.permissions.query({ name: 'magnetometer' })
+        navigator.permissions.query({ name: 'magnetometer' }),
+        lightSensorQuery
       ])
       .then(([
           { state: gyroState },
           { state: accelState },
-          { state: magState }]) => {
+          { state: magState },
+          { state: lightState }]) => {
 
           handleQuery(gyroState, 'gyroscope');
           handleQuery(accelState, 'accelerometer');
           handleQuery(magState, 'magnetometer');
+          handleQuery(lightState, 'ambient-light-sensor');
       });
     }
     function init() {
@@ -86,6 +95,7 @@
       <tr><td>Gyroscope: <span id="gyroscope"></span></td></tr>
       <tr><td>Accelerometer: <span id="accelerometer"></span></td></tr>
       <tr><td>Magnetometer: <span id="magnetometer"></span></td></tr>
+      <tr><td>Ambient light sensor: <span id="ambient-light-sensor"></span></td></tr>
     </table>
   </body>
 </html>
