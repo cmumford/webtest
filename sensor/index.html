@@ -8,82 +8,70 @@
     function $(id) {
       return document.getElementById(id);
     }
-    function watchGyro() {
-      try {
-        let gyroscope = new Gyroscope({frequency: 60});
-        let started = Date.now();
-        let nextUpdateTime = started + 1000.0;
-        let numFrames = 0;
-        gyroscope.addEventListener('reading', e => {
-          numFrames += 1;
-          let now = Date.now();
-          if (now >= nextUpdateTime) {
-            updateRate = numFrames / ((now - started) / 1000.0);
-            $('gyroscope').innerHTML = 'Rate: ' + Math.round(updateRate) + ' Hz';
-            nextUpdateTime = now + 1000.0;
-          }
-        });
-        gyroscope.start();
-      } catch (e) {
-        console.error(e);
+    function createHzListener(statusTagId) {
+      let firstUpdateTime = 0;
+      let nextUpdateTime = 0;
+      let numEvents = 0;
+
+      return (e) => {
+        numEvents += 1;
+        let now = Date.now();
+        if (firstUpdateTime == 0) {
+          firstUpdateTime = now;
+          nextUpdateTime = now + 1000;
+          return;
+        }
+        if (now >= nextUpdateTime) {
+          updateRate = numEvents / ((now - firstUpdateTime) / 1000.0);
+          $(statusTagId).innerHTML = 'Rate: ' + Math.round(updateRate) + ' Hz';
+          nextUpdateTime = now + 1000.0;
+        }
       }
     }
-    function watchAccelerometer() {
-      try {
-        let accelerometer = new Accelerometer({frequency: 60});
-        let started = Date.now();
-        let nextUpdateTime = started + 1000.0;
-        let numFrames = 0;
-        accelerometer.addEventListener('reading', e => {
-          numFrames += 1;
-          let now = Date.now();
-          if (now >= nextUpdateTime) {
-            updateRate = numFrames / ((now - started) / 1000.0);
-            $('accelerometer').innerHTML = 'Rate: ' + Math.round(updateRate) + ' Hz';
-            nextUpdateTime = now + 1000.0;
+    function createSensor(name) {
+      switch (name) {
+        case 'gyroscope':
+          return new Gyroscope({frequency: 60});
+        case 'accelerometer':
+          return new Accelerometer({frequency: 60});
+        case 'magnetometer':
+          return new Magnetometer({frequency: 60});
+        default:
+      }
+    }
+    function handleQuery(state, sensorName) {
+      console.log(sensorName + ': ' + state);
+      switch (state) {
+        case 'granted':
+        case 'prompt':
+          try {
+            let sensor = createSensor(sensorName);
+            sensor.addEventListener('reading', createHzListener(sensorName));
+            sensor.start();
+            $(sensorName).innerHTML = 'Active.';
+          } catch (e) {
+            $(sensorName).innerHTML = 'Exception: ' + e.message;
           }
-        });
-        accelerometer.start();
-      } catch (e) {
-        console.error(e);
+          break;
+        default:
+          $(sensorName).innerHTML = 'Denied access to ' + sensorName;
+          break;
       }
     }
     function listenAll() {
       Promise.all([
         navigator.permissions.query({ name: 'gyroscope' }),
-        navigator.permissions.query({ name: 'accelerometer' })
+        navigator.permissions.query({ name: 'accelerometer' }),
+        navigator.permissions.query({ name: 'magnetometer' })
       ])
       .then(([
           { state: gyroState },
-          { state: accelState }]) => {
+          { state: accelState },
+          { state: magState }]) => {
 
-        switch (gyroState) {
-          case 'granted':
-            console.log('Gyro: granted')
-            watchGyro();
-            break;
-          case 'prompt':
-            console.log('Gyro: prompt')
-            watchGyro();
-            break;
-          default:
-            $('gyroscope').innerHTML = 'Denied access to gyroscope';
-            break;
-        }
-
-        switch (accelState) {
-          case 'granted':
-            console.log('Accel: granted')
-            watchAccelerometer();
-            break;
-          case 'prompt':
-            console.log('Accel: prompt')
-            watchAccelerometer();
-            break;
-          default:
-            $('accelerometer').innerHTML = 'Denied access to accelerometer';
-            break;
-        }
+          handleQuery(gyroState, 'gyroscope');
+          handleQuery(accelState, 'accelerometer');
+          handleQuery(magState, 'magnetometer');
       });
     }
     function init() {
@@ -97,6 +85,7 @@
       <tr><th>Sensor</th></tr>
       <tr><td>Gyroscope: <span id="gyroscope"></span></td></tr>
       <tr><td>Accelerometer: <span id="accelerometer"></span></td></tr>
+      <tr><td>Magnetometer: <span id="magnetometer"></span></td></tr>
     </table>
   </body>
 </html>
