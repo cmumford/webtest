@@ -8,6 +8,23 @@
     function $(id) {
       return document.getElementById(id);
     }
+    function createFunctionThrottler(cb, msec) {
+      let firstUpdateTime = 0;
+      let nextUpdateTime = 0;
+
+      return () => {
+        let now = Date.now();
+        if (firstUpdateTime == 0) {
+          firstUpdateTime = now;
+          nextUpdateTime = now + 1000;
+          return;
+        }
+        if (now >= nextUpdateTime) {
+          cb();
+          nextUpdateTime = now + 1000.0;
+        }
+      }
+    }
     function createHzListener(statusTagId) {
       let firstUpdateTime = 0;
       let nextUpdateTime = 0;
@@ -28,74 +45,106 @@
         }
       }
     }
-    function createSensor(name) {
-      switch (name) {
+    function createSensor(sensorName) {
+      switch (sensorName) {
         case 'gyroscope':
           return new Gyroscope({frequency: 60});
         case 'accelerometer':
           return new Accelerometer({frequency: 50});
+        case 'linear-acceleration':
+          return new LinearAccelerationSensor({frequency: 50});
         case 'magnetometer':
           return new Magnetometer({frequency: 10});
         case 'ambient-light-sensor':
-          return new AmbientLightSensor({frequency: 10});
+          return new AmbientLightSensor({frequency: 2});
+        case 'orientation':
+          return new OrientationSensor({frequency: 20});
         default:
       }
     }
-    function handleQuery(state, sensorName) {
+    function createSensorListener(sensor, sensorName) {
+      switch (sensorName) {
+        case 'accelerometer':
+        case 'linear-acceleration':
+        case 'gyroscope':
+          return createFunctionThrottler(function() {
+            $(sensorName).innerHTML = '(x:' + sensor.x + ', y:' + sensor.y + ', z:' + sensor.z + ')';
+          }, 1000);
+        case 'orientation':
+          return createFunctionThrottler(function() {
+            $(sensorName).innerHTML = sensor.quaternion;
+          }, 1000);
+        default:
+      }
+      return createHzListener(sensorName);
+    }
+    function listenToSensor(sensorName) {
+      try {
+        let sensor = createSensor(sensorName);
+
+        sensor.addEventListener('reading', createSensorListener(sensor, sensorName));
+        sensor.start();
+        $(sensorName).innerHTML = 'Listening';
+        $(sensorName + '_button').disabled = true;
+      } catch (e) {
+        $(sensorName).innerHTML = 'Exception: ' + e.message;
+      }
+    }
+    function handlePermQueryResponse(state, sensorName) {
       console.log(sensorName + ': ' + state);
       switch (state) {
         case 'granted':
         case 'prompt':
-          try {
-            let sensor = createSensor(sensorName);
-            sensor.addEventListener('reading', createHzListener(sensorName));
-            sensor.start();
-            $(sensorName).innerHTML = 'Active.';
-          } catch (e) {
-            $(sensorName).innerHTML = 'Exception: ' + e.message;
-          }
+          listenToSensor(sensorName);
           break;
         default:
           $(sensorName).innerHTML = 'Denied access to ' + sensorName;
           break;
       }
     }
-    function listenAll() {
-      var lightSensorQuery = function() {
-        // On Chrome requires GenericSensorExtraClasses.
-        return navigator.permissions.query({ name: 'ambient-light-sensor' })
-      }
-      Promise.all([
-        navigator.permissions.query({ name: 'gyroscope' }),
-        navigator.permissions.query({ name: 'accelerometer' }),
-        navigator.permissions.query({ name: 'magnetometer' }),
-        lightSensorQuery
-      ])
-      .then(([
-          { state: gyroState },
-          { state: accelState },
-          { state: magState },
-          { state: lightState }]) => {
-
-          handleQuery(gyroState, 'gyroscope');
-          handleQuery(accelState, 'accelerometer');
-          handleQuery(magState, 'magnetometer');
-          handleQuery(lightState, 'ambient-light-sensor');
+    function listenTo(sensorName) {
+      // https://w3c.github.io/permissions/#permission-registry
+      navigator.permissions.query({ name: sensorName }).then(({ state }) => {
+        handlePermQueryResponse(state, sensorName);
+      }).catch(() => {
+        $(sensorName).innerHTML = 'Error listening to ' + sensorName;
+        // This will fail every time, so disable the button.
+        $(sensorName + '_button').disabled = true;
       });
     }
     function init() {
-      listenAll();
     }
     </script>
   </head>
   <body onload="init()">
     <h1>Generic Sensor</h1>
     <table>
-      <tr><th>Sensor</th></tr>
-      <tr><td>Gyroscope: <span id="gyroscope"></span></td></tr>
-      <tr><td>Accelerometer: <span id="accelerometer"></span></td></tr>
-      <tr><td>Magnetometer: <span id="magnetometer"></span></td></tr>
-      <tr><td>Ambient light sensor: <span id="ambient-light-sensor"></span></td></tr>
+      <tr><th>Sensor</th><th></th></tr>
+      <tr>
+        <td><button id="gyroscope_button" type="button" onclick="listenTo('gyroscope')">Gyroscope</button></td>
+        <td><span id="gyroscope"></span></td>
+      </tr>
+      <tr>
+        <td><button id="accelerometer_button" type="button" onclick="listenTo('accelerometer')">Accelerometer</button></td>
+        <td><span id="accelerometer"></span></td>
+      </tr>
+      <tr>
+        <td><button id="linear-acceleration_button" type="button" onclick="listenTo('linear-acceleration')">Linear Acceleration</button></td>
+        <td><span id="linear-acceleration"></span></td>
+      </tr>
+      <tr>
+        <td><button id="magnetometer_button" type="button" onclick="listenTo('magnetometer')">Magnetometer</button></td>
+        <td><span id="magnetometer"></span></td>
+      </tr>
+      <tr>
+        <td><button id="ambient-light-sensor_button" type="button" onclick="listenTo('ambient-light-sensor')">ALS</button></td>
+        <td><span id="ambient-light-sensor"></span></td>
+      </tr>
+      <tr>
+        <td><button id="orientation_button" type="button" onclick="listenTo('orientation')">Orientation</button></td>
+        <td><span id="orientation"></span></td>
+      </tr>
     </table>
+    <p><a href="https://www.w3.org/TR/generic-sensor/">Generic Sensor API</a></p>
   </body>
 </html>
