@@ -57,8 +57,10 @@
           return new Magnetometer({frequency: 10});
         case 'ambient-light-sensor':
           return new AmbientLightSensor({frequency: 2});
-        case 'orientation':
-          return new OrientationSensor({frequency: 20});
+        case 'absolute-orientation':
+          return new AbsoluteOrientationSensor({frequency: 20});
+        case 'relative-orientation':
+          return new AbsoluteOrientationSensor({frequency: 20});
         default:
       }
     }
@@ -70,7 +72,8 @@
           return createFunctionThrottler(function() {
             $(sensorName).innerHTML = '(x:' + sensor.x + ', y:' + sensor.y + ', z:' + sensor.z + ')';
           }, 1000);
-        case 'orientation':
+        case 'absolute-orientation':
+        case 'relative-orientation':
           return createFunctionThrottler(function() {
             $(sensorName).innerHTML = sensor.quaternion;
           }, 1000);
@@ -141,8 +144,12 @@
         <td><span id="ambient-light-sensor"></span></td>
       </tr>
       <tr>
-        <td><button id="orientation_button" type="button" onclick="listenTo('orientation')">Orientation</button></td>
-        <td><span id="orientation"></span></td>
+        <td><button id="absolute-orientation_button" type="button" onclick="listenTo('absolute-orientation')">Absolute Orientation</button></td>
+        <td><span id="absolute-orientation"></span></td>
+      </tr>
+      <tr>
+        <td><button id="relative-orientation_button" type="button" onclick="listenTo('relative-orientation')">Relative Orientation</button></td>
+        <td><span id="relative-orientation"></span></td>
       </tr>
     </table>
     <p><a href="https://www.w3.org/TR/generic-sensor/">Generic Sensor API</a></p>
