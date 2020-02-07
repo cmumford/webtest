@@ -8,20 +8,14 @@
     function $(id) {
       return document.getElementById(id);
     }
-    function createFunctionThrottler(cb, msec) {
-      let firstUpdateTime = 0;
+    function createFunctionThrottler(func, delay) {
       let nextUpdateTime = 0;
 
       return () => {
         let now = Date.now();
-        if (firstUpdateTime == 0) {
-          firstUpdateTime = now;
-          nextUpdateTime = now + 1000;
-          return;
-        }
-        if (now >= nextUpdateTime) {
-          cb();
-          nextUpdateTime = now + 1000.0;
+        if (nextUpdateTime == 0 || now >= nextUpdateTime) {
+          func();
+          nextUpdateTime = now + delay;
         }
       }
     }
