@@ -106,6 +106,8 @@
       }).catch((e) => {
         console.error(e);
         $(sensorName).innerHTML = e.message;
+        // Here only because orientation isn't granted, but should be.
+        handlePermQueryResponse('granted', sensorName);
         // This will fail every time, so disable the button.
         $(sensorName + '_button').disabled = true;
       });
