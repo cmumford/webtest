@@ -109,8 +109,9 @@
       // https://w3c.github.io/permissions/#permission-registry
       navigator.permissions.query({ name: sensorName }).then(({ state }) => {
         handlePermQueryResponse(state, sensorName);
-      }).catch(() => {
-        $(sensorName).innerHTML = 'Error listening to ' + sensorName;
+      }).catch((e) => {
+        console.error(e);
+        $(sensorName).innerHTML = e.message;
         // This will fail every time, so disable the button.
         $(sensorName + '_button').disabled = true;
       });
