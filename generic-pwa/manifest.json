@@ -1,0 +1,14 @@
+{
+  "name": "Generic PWA",
+  "short_name": "gPWA",
+  "start_url": "/index.html",
+  "lang": "en-US",
+  "background_color": "white",
+  "display": "standalone",
+  "theme_color": "white",
+  "icons": [{
+    "src": "img/icon_256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    }]
+}
