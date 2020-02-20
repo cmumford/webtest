@@ -1,15 +1,27 @@
+
+badgeCount = 1;
+
 window.onload = () => {
   'use strict';
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
   }
+}
 
-  console.log('Adding an app badge.');
-  navigator.setAppBadge(1);
-  console.log('Added an app badge.');
+function incrementBadge() {
+  try {
+    navigator.setAppBadge(badgeCount);
+    console.log(`Set the app badge to ${badgeCount}.`);
+  } catch (e) {
+    console.warn('Unable to set the app badge.');
+  }
 
-  console.log('Adding a client badge.');
-  navigator.setClientBadge(1);
-  console.log('Added a client badge.');
+  try {
+    navigator.setClientBadge(badgeCount);
+    console.log(`Set the client badge to ${badgeCount}.`);
+  } catch (e) {
+    console.warn('Unable to set the client badge.');
+  }
+  badgeCount++;
 }
