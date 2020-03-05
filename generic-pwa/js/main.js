@@ -10,21 +10,30 @@ window.onload = () => {
   }
 }
 
+function $(id) {
+  return document.getElementById(id);
+}
+
+function setStatus(tag_id, status) {
+  $(tag_id).innerHTML = status;
+}
+
+function call(func, status_id, success_status) {
+  try {
+    func().then( (status) => {
+      setStatus(status_id, success_status);
+    }, (error) => {
+      setStatus(status_id, error);
+    });
+  } catch (e) {
+    setStatus(status_id, e);
+  }
+}
+
 function incrementBadge() {
   badgeCount++;
-  try {
-    navigator.setAppBadge(badgeCount);
-    console.log(`Set the app badge to ${badgeCount}.`);
-  } catch (e) {
-    console.warn('Unable to set the app badge.');
-  }
-
-  try {
-    navigator.setClientBadge(badgeCount);
-    console.log(`Set the client badge to ${badgeCount}.`);
-  } catch (e) {
-    console.warn('Unable to set the client badge.');
-  }
+  call( () => {return navigator.setAppBadge(badgeCount);}, "app_status", badgeCount);
+  call( () => {return navigator.setClientBadge(badgeCount);}, "client_status", badgeCount);
 }
 
 function updateBadge() {
@@ -39,18 +48,7 @@ function clearBadge() {
   if (timerFunc) {
     clearInterval(timerFunc);
   }
-  try {
-    navigator.clearAppBadge();
-    console.log("The app badge is cleared.");
-  } catch (e) {
-    console.warn('Unable to clear the app badge.');
-  }
-
-  try {
-    navigator.setClientBadge(badgeCount);
-    console.log("The client badge is cleared.");
-  } catch (e) {
-    console.warn('Unable to clear the client badge.');
-  }
+  call( () => {return navigator.clearAppBadge(badgeCount);}, "app_status", "cleared");
+  call( () => {return navigator.clearClientBadge(badgeCount);}, "client_status", "cleared");
   badgeCount = 0;
 }
