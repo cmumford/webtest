@@ -20,7 +20,7 @@ function setStatus(tag_id, status) {
 
 function call(func, status_id, success_status) {
   try {
-    func().then( (status) => {
+    func().then( () => {
       setStatus(status_id, success_status);
     }, (error) => {
       setStatus(status_id, error);
