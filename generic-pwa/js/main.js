@@ -1,5 +1,5 @@
 
-badgeCount = 0;
+badgeCount = -1;
 timerFunc = undefined;
 
 window.onload = () => {
@@ -31,7 +31,13 @@ function call(func, status_id, success_status) {
 }
 
 function incrementBadge() {
-  badgeCount++;
+  if (badgeCount == -1) {
+    badgeCount = undefined;
+  } else if (badgeCount === undefined) {
+    badgeCount = 0;
+  } else {
+    badgeCount++;
+  }
   call( () => {return navigator.setAppBadge(badgeCount);}, "app_status", badgeCount);
   call( () => {return navigator.setClientBadge(badgeCount);}, "client_status", badgeCount);
 }
@@ -50,5 +56,5 @@ function clearBadge() {
   }
   call( () => {return navigator.clearAppBadge(badgeCount);}, "app_status", "cleared");
   call( () => {return navigator.clearClientBadge(badgeCount);}, "client_status", "cleared");
-  badgeCount = 0;
+  badgeCount = -1;
 }
