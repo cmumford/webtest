@@ -1,4 +1,8 @@
 
+// The bad numbers have the following meaning:
+//  0: Badge is clear.
+// -1: Badge is a flag.
+// >0: Badge is an integer value.
 badgeCount = 0;
 timerFunc = undefined;
 
@@ -31,17 +35,24 @@ function call(func, status_id, success_status) {
 }
 
 function updateBadges() {
-  call( () => {return navigator.setAppBadge(badgeCount);}, "app_status", badgeCount);
-  call( () => {return navigator.setClientBadge(badgeCount);}, "client_status", badgeCount);
+  var value = badgeCount;
+  if (value == -1) {
+    value = undefined;
+  }
+  call( () => {return navigator.setAppBadge(value);}, "app_status", value);
+  call( () => {return navigator.setClientBadge(value);}, "client_status", value);
 }
 
 function incrementBadge() {
-  if (badgeCount === 0) {
-    badgeCount = undefined;
-  } else if (badgeCount === undefined) {
+  if (badgeCount == 0) {
+    badgeCount = -1;
+  } else if (badgeCount == -1) {
     badgeCount = 1;
   } else {
     badgeCount++;
+    if (badgeCount > 150) {
+      badgeCount = 0;
+    }
   }
   writeBadgeCount();
   updateBadges();
@@ -62,10 +73,10 @@ function clearBadge() {
     clearInterval(timerFunc);
     timerFunc = undefined;
   }
-  call( () => {return navigator.clearAppBadge(badgeCount);}, "app_status", "cleared");
-  call( () => {return navigator.clearClientBadge(badgeCount);}, "client_status", "cleared");
   badgeCount = 0;
   writeBadgeCount();
+  call( () => {return navigator.clearAppBadge();}, "app_status", "cleared");
+  call( () => {return navigator.clearClientBadge();}, "client_status", "cleared");
 }
 
 window.onload = () => {
